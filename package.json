@@ -1,0 +1,56 @@
+{
+  "name": "anime-dl-tui",
+  "version": "1.0.0",
+  "description": "Interface terminal (Ink) pour rechercher et télécharger des animes depuis voir-anime.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Nexgear75",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nexgear75/anime-dl-tui.git"
+  },
+  "homepage": "https://github.com/Nexgear75/anime-dl-tui#readme",
+  "bugs": {
+    "url": "https://github.com/Nexgear75/anime-dl-tui/issues"
+  },
+  "bin": {
+    "adl": "dist/cli.js",
+    "anime-dl-tui": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/cli.tsx",
+    "start": "node dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "anime",
+    "downloader",
+    "tui",
+    "ink",
+    "cli",
+    "yt-dlp"
+  ],
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "ink": "^7.1.1",
+    "ink-spinner": "^5.0.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}
