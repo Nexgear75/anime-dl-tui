@@ -24,6 +24,8 @@ export interface DownloadRequest {
   /** Parallel HLS fragments per download. */
   fragments?: number;
   ytDlpPath?: string;
+  /** ffmpeg binary to use when it is not on the PATH. */
+  ffmpegPath?: string;
 }
 
 // Children still running when Node exits (crash, forced quit) would keep
@@ -98,6 +100,7 @@ export function buildYtDlpArgs(request: DownloadRequest): string[] {
     '--concurrent-fragments',
     String(request.fragments ?? 8),
     ...Object.entries(headers).flatMap(([name, value]) => ['--add-headers', `${name}:${value}`]),
+    ...(request.ffmpegPath && request.ffmpegPath !== 'ffmpeg' ? ['--ffmpeg-location', request.ffmpegPath] : []),
     '-o',
     request.output,
     '--',
@@ -126,6 +129,7 @@ export function download(request: DownloadRequest): Promise<void> {
 
     const child = spawn(request.ytDlpPath ?? 'yt-dlp', buildYtDlpArgs(request), {
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     });
     children.add(child);
 
@@ -160,7 +164,7 @@ export function download(request: DownloadRequest): Promise<void> {
       signal?.removeEventListener('abort', onAbort);
       reject(
         error.code === 'ENOENT'
-          ? new DownloadError('yt-dlp est introuvable. Installe-le (voir README).', log)
+          ? new DownloadError('yt-dlp est introuvable. Lance « adl --install-tools ».', log)
           : error,
       );
     });

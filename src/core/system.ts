@@ -1,40 +1,7 @@
-import { execFile } from 'node:child_process';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { promisify } from 'node:util';
 import { DEFAULT_BASE_URL } from './voiranime.js';
-
-const run = promisify(execFile);
-
-export interface Tool {
-  name: string;
-  ok: boolean;
-  version?: string;
-}
-
-async function probe(command: string, args: string[]): Promise<Tool> {
-  try {
-    const { stdout } = await run(command, args, { timeout: 10_000 });
-    return { name: command, ok: true, version: stdout.split('\n')[0]?.trim() };
-  } catch {
-    return { name: command, ok: false };
-  }
-}
-
-/** yt-dlp downloads the streams; ffmpeg lets it remux HLS into a clean mp4. */
-export async function checkTools(ytDlpPath = 'yt-dlp'): Promise<{ ytDlp: Tool; ffmpeg: Tool }> {
-  const [ytDlp, ffmpeg] = await Promise.all([
-    probe(ytDlpPath, ['--version']),
-    probe('ffmpeg', ['-version']),
-  ]);
-  return { ytDlp: { ...ytDlp, name: 'yt-dlp' }, ffmpeg };
-}
-
-export const INSTALL_HINTS: Record<string, string> = {
-  'yt-dlp': 'macOS : brew install yt-dlp · Linux : pipx install yt-dlp · Windows : winget install yt-dlp',
-  ffmpeg: 'macOS : brew install ffmpeg · Linux : sudo apt install ffmpeg · Windows : winget install ffmpeg',
-};
 
 const configDir = () =>
   process.env.XDG_CONFIG_HOME

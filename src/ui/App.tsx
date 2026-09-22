@@ -32,6 +32,8 @@ interface Props {
   launch: Launch;
   settings: Settings;
   warning?: string;
+  /** Resolved yt-dlp / ffmpeg locations. */
+  tools: { ytDlpPath: string; ffmpegPath?: string };
   onExit: (summary: Summary) => void;
 }
 
@@ -61,7 +63,7 @@ const message = (error: unknown) => {
   return String(error);
 };
 
-export function App({ launch, settings: initialSettings, warning, onExit }: Props) {
+export function App({ launch, settings: initialSettings, warning, tools, onExit }: Props) {
   const { exit } = useApp();
   const [settings, setSettings] = useState(initialSettings);
   const [screen, setScreen] = useState<Screen>('home');
@@ -195,6 +197,7 @@ export function App({ launch, settings: initialSettings, warning, onExit }: Prop
     const created = new DownloadQueue({
       concurrency: chosen.concurrency,
       preferredPlayer: chosen.preferredPlayer,
+      ...tools,
     });
     created.on('idle', () => {
       const failures = created.jobs.filter((job) => job.status === 'failed');

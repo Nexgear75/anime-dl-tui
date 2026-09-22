@@ -33,27 +33,44 @@ Une interface terminal pour **rechercher et télécharger des animes depuis [voi
 
 ## Installation
 
-### Prérequis
+### En une commande
 
-| Outil | Pourquoi | Installation |
-| --- | --- | --- |
-| [Node.js](https://nodejs.org) ≥ 22 | exécute l’application | `brew install node` · [nodejs.org](https://nodejs.org) |
-| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | télécharge les flux vidéo | `brew install yt-dlp` · `pipx install yt-dlp` · `winget install yt-dlp` |
-| [ffmpeg](https://ffmpeg.org) | assemble la vidéo en `.mp4` | `brew install ffmpeg` · `sudo apt install ffmpeg` · `winget install ffmpeg` |
+**Windows** (PowerShell) :
 
-### En une commande (macOS / Linux)
+```powershell
+irm https://raw.githubusercontent.com/Nexgear75/anime-dl-tui/main/scripts/install.ps1 | iex
+```
+
+**macOS / Linux** :
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Nexgear75/anime-dl-tui/main/scripts/install.sh | sh
 ```
 
-Le script vérifie Node, installe la dernière version publiée et te dit s’il manque yt-dlp ou ffmpeg.
+Le script installe tout ce qu’il faut :
 
-### Avec npm (toutes plateformes, Windows compris)
+- **Node.js** ≥ 22 (sous Windows, installé avec `winget` s’il manque) ;
+- la dernière version publiée d’anime-dl-tui ;
+- **yt-dlp** et **ffmpeg** s’ils sont absents, téléchargés dans le dossier de l’application (`%LOCALAPPDATA%\anime-dl-tui\bin` ou `~/.local/share/anime-dl-tui/bin`) : pas besoin de toucher au PATH. Sous macOS, ffmpeg s’installe avec `brew install ffmpeg`.
+
+Relancer la même commande met l’application à jour.
+
+### Outils manquants ou à mettre à jour
+
+```sh
+adl --install-tools
+```
+
+Télécharge (ou met à jour) yt-dlp et ffmpeg dans le dossier de l’application. Si yt-dlp manque au lancement, `adl` propose aussi de l’installer.
+
+### Avec npm
 
 ```sh
 npm install -g https://github.com/Nexgear75/anime-dl-tui/releases/latest/download/anime-dl-tui.tgz
+adl --install-tools
 ```
+
+Sous Windows, lance ces commandes dans `cmd` ou tape `npm.cmd` dans PowerShell (le script `npm.ps1` y est bloqué par défaut).
 
 ### Depuis les sources
 
@@ -82,7 +99,8 @@ adl https://voir-anime.to/anime/mushoku-tensei-3/   # ouvre directement la séri
 | Recherche | `Entrée` rechercher · `Échap` quitter |
 | Résultats | `↑` `↓` naviguer · `Entrée` ouvrir · `Échap` retour |
 | Épisodes | `Espace` cocher · `a` tout/rien · `i` inverser · `n` non téléchargés · `s` plage (`1-5,8`) · `PgUp`/`PgDn`/`Début`/`Fin` · `Entrée` continuer |
-| Options | `↑` `↓` choisir un champ · `←` `→` modifier · `Entrée` sur « Dossier » pour l’éditer, sinon lancer |
+| Options | `↑` `↓` choisir un champ · `←` `→` modifier · `Entrée` sur « Dossier » pour parcourir les dossiers, `e` pour taper le chemin, sinon lancer |
+| Choix du dossier | `↑` `↓` naviguer · `→`/`Entrée` ouvrir · `←` dossier parent · `Espace` choisir ce dossier · `n` nouveau dossier · `/` taper un chemin · `~` dossier perso · `.` dossiers cachés · `Échap` annuler |
 | Téléchargements | `q` arrêter et quitter · `r` réessayer les échecs · `Entrée` nouvelle recherche (une fois fini) |
 
 `Ctrl+C` fonctionne partout : il arrête proprement les téléchargements en cours. Un second `Ctrl+C` force l’arrêt.
@@ -97,6 +115,7 @@ adl https://voir-anime.to/anime/mushoku-tensei-3/   # ouvre directement la séri
 | `-p, --player <id>` | lecteur préféré : `vidmoly` ou `streamtape` |
 | `--base-url <url>` | adresse du site, si voir-anime change de domaine |
 | `--plain` | mode texte sans interface |
+| `--install-tools` | installe ou met à jour yt-dlp et ffmpeg |
 | `-h, --help` / `-v, --version` | aide / version |
 
 Avec `--episodes`, l’écran de sélection est sauté et tu arrives directement sur la confirmation.
@@ -115,7 +134,7 @@ En mode `--plain`, le code de sortie vaut `0` si tout est téléchargé, `1` en 
 
 ## Fichiers
 
-Chaque épisode est enregistré sous la forme `<dossier>/<Série> - 01.mp4` ; les films et épisodes spéciaux gardent leur titre. Par défaut, `<dossier>` vaut `~/Downloads/Anime/<Série>`.
+Chaque épisode est enregistré sous la forme `<dossier>/<Série> - 01.mp4` ; les films et épisodes spéciaux gardent leur titre. Par défaut, `<dossier>` vaut `~/Downloads/Anime/<Série>`. Le dossier se choisit dans l’écran Options avec un explorateur de dossiers : la série y reçoit son propre sous-dossier, et le dossier choisi devient le défaut des prochaines fois.
 
 | Fichier | Contenu |
 | --- | --- |
@@ -126,8 +145,9 @@ Chaque épisode est enregistré sous la forme `<dossier>/<Série> - 01.mp4` ; le
 
 - **« Aucun lecteur compatible »** : l’épisode n’a pas de lecteur supporté (VidMoly ou Streamtape). Essaie la version VF/VOSTFR, ou ouvre une issue avec l’URL.
 - **« Impossible de joindre le site »** : vérifie ta connexion. Si voir-anime a changé d’adresse, utilise `--base-url https://nouveau-domaine`. Les URL collées fonctionnent quel que soit le domaine.
-- **Erreurs HTTP 403 ou lien invalide** : mets yt-dlp à jour (`brew upgrade yt-dlp` ou `yt-dlp -U`), puis réessaie avec `r`.
-- **Vidéo illisible ou mal assemblée** : installe ffmpeg.
+- **Erreurs HTTP 403 ou lien invalide** : mets yt-dlp à jour (`adl --install-tools`, `brew upgrade yt-dlp` ou `yt-dlp -U`), puis réessaie avec `r`.
+- **Vidéo illisible ou mal assemblée** : installe ffmpeg (`adl --install-tools`, ou `brew install ffmpeg` sur macOS).
+- **Windows : « l’exécution de scripts est désactivée »** : relance l’installation en une commande (elle retire les raccourcis `.ps1` bloqués), ou lance `adl.cmd`.
 - Le détail de chaque échec est dans `~/.config/anime-dl-tui/anime-dl-tui.log`.
 
 ## Développement
@@ -150,7 +170,9 @@ src/
 │   ├── queue.ts          file de téléchargements : parallélisme, essais, annulation
 │   ├── http.ts           fetch avec délai maximal et nouveaux essais
 │   ├── format.ts         noms de fichiers, plages d'épisodes, affichage
-│   └── system.ts         réglages, journal, présence de yt-dlp/ffmpeg
+│   ├── folders.ts        navigation dans les dossiers (écran de choix du dossier)
+│   ├── tools.ts          recherche et installation de yt-dlp/ffmpeg
+│   └── system.ts         réglages et journal
 └── ui/                   écrans Ink (recherche, résultats, épisodes, options, téléchargements)
 ```
 

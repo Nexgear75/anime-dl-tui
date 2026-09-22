@@ -19,28 +19,41 @@ if [ "$NODE_MAJOR" -lt 22 ]; then
 fi
 
 echo "Installation d'anime-dl-tui…"
-npm install -g "$PACKAGE_URL"
+# Without write access to npm's global folder (system Node on Linux), install
+# under ~/.local instead of asking for sudo.
+NPM_PREFIX=$(npm prefix -g)
+if [ -w "$NPM_PREFIX/lib" ] || [ -w "$NPM_PREFIX/lib/node_modules" ]; then
+  npm install -g "$PACKAGE_URL"
+else
+  NPM_PREFIX="$HOME/.local"
+  yellow "Pas d'accès en écriture au dossier global de npm : installation dans ~/.local"
+  npm install -g --prefix "$NPM_PREFIX" "$PACKAGE_URL"
+fi
+ADL="$NPM_PREFIX/bin/adl"
 
+# yt-dlp / ffmpeg: anything missing is downloaded into anime-dl-tui's own folder.
+TOOLS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/anime-dl-tui/bin"
 missing=0
 for tool in yt-dlp ffmpeg; do
-  if command -v "$tool" >/dev/null 2>&1; then
+  if command -v "$tool" >/dev/null 2>&1 || [ -x "$TOOLS_DIR/$tool" ]; then
     green "✔ $tool trouvé"
   else
     missing=1
     yellow "⚠ $tool est manquant"
   fi
 done
-
 if [ "$missing" -eq 1 ]; then
-  echo
-  if command -v brew >/dev/null 2>&1; then
-    yellow "Installe-les avec : brew install yt-dlp ffmpeg"
-  elif command -v apt-get >/dev/null 2>&1; then
-    yellow "Installe-les avec : sudo apt install ffmpeg pipx && pipx install yt-dlp"
-  else
-    yellow "Installe yt-dlp (https://github.com/yt-dlp/yt-dlp) et ffmpeg (https://ffmpeg.org)."
-  fi
+  echo "Installation automatique des outils manquants…"
+  "$ADL" --install-tools || yellow "Échec : réessaie plus tard avec « adl --install-tools »."
 fi
 
 echo
-green "C'est prêt ! Lance « adl » pour démarrer."
+case ":$PATH:" in
+  *":$NPM_PREFIX/bin:"*) green "C'est prêt ! Lance « adl » pour démarrer." ;;
+  *)
+    green "C'est prêt !"
+    yellow "Ajoute $NPM_PREFIX/bin à ton PATH (dans ~/.zshrc ou ~/.bashrc) :"
+    echo "  export PATH=\"$NPM_PREFIX/bin:\$PATH\""
+    echo "En attendant, lance : $ADL"
+    ;;
+esac

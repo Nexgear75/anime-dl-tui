@@ -37,6 +37,7 @@ export interface QueueOptions {
   retryDelayMs?: number;
   fragments?: number;
   ytDlpPath?: string;
+  ffmpegPath?: string;
 }
 
 export const isFinished = (status: JobStatus) =>
@@ -166,6 +167,7 @@ export class DownloadQueue extends EventEmitter<{ update: []; idle: [] }> {
             signal,
             fragments: this.options.fragments,
             ytDlpPath: this.options.ytDlpPath,
+            ffmpegPath: this.options.ffmpegPath,
             onProgress: (progress) => this.update(job, { progress }),
           });
 

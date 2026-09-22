@@ -24,3 +24,10 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: node dist/cli.js --version
+      - name: Check that the Windows installer parses (PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\scripts\install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors; exit 1 }

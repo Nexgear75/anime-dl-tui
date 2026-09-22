@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import { render } from 'ink';
 import { expandHome, formatSpeed, parseSelection, sanitizeFilename, episodeFileName, numberWidth, tildify } from './core/format.js';
 import { PLAYER_IDS } from './core/players/index.js';
 import { DownloadQueue, type Job } from './core/queue.js';
-import { checkTools, INSTALL_HINTS, loadSettings, logPath, writeLog, type Settings } from './core/system.js';
+import { loadSettings, logPath, writeLog, type Settings } from './core/system.js';
+import { checkTools, installTools, INSTALL_HINTS } from './core/tools.js';
 import { getSeries } from './core/voiranime.js';
 import { App, type Launch, type Summary } from './ui/App.js';
 
@@ -27,6 +29,7 @@ Options
   -p, --player <id>            lecteur préféré : ${PLAYER_IDS.join(', ')}
       --base-url <url>         adresse du site (si le domaine change)
       --plain                  mode texte sans interface (scripts, cron)
+      --install-tools          installe ou met à jour yt-dlp et ffmpeg
   -h, --help                   affiche cette aide
   -v, --version                affiche la version
 
@@ -40,6 +43,13 @@ function fail(message: string): never {
   process.exit(1);
 }
 
+async function confirm(question: string): Promise<boolean> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await rl.question(`${question} [O/n] `);
+  rl.close();
+  return !/^n/i.test(answer.trim());
+}
+
 function parseCli() {
   try {
     return parseArgs({
@@ -51,6 +61,7 @@ function parseCli() {
         player: { type: 'string', short: 'p' },
         'base-url': { type: 'string' },
         plain: { type: 'boolean' },
+        'install-tools': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'v' },
       },
@@ -61,7 +72,7 @@ function parseCli() {
 }
 
 /** Non-interactive mode: logs one line per event, suited to scripts and pipes. */
-async function runPlain(launch: Launch, settings: Settings) {
+async function runPlain(launch: Launch, settings: Settings, tools: { ytDlpPath: string; ffmpegPath?: string }) {
   if (!launch.input || !/^https?:\/\//.test(launch.input)) {
     fail('Le mode --plain a besoin de l’URL d’une série.');
   }
@@ -77,6 +88,7 @@ async function runPlain(launch: Launch, settings: Settings) {
   const queue = new DownloadQueue({
     concurrency: settings.concurrency,
     preferredPlayer: settings.preferredPlayer,
+    ...tools,
   });
   const lastStatus = new Map<Job, string>();
   queue.on('update', () => {
@@ -135,6 +147,10 @@ async function main() {
   const { values, positionals } = parseCli();
   if (values.help) return void process.stdout.write(HELP);
   if (values.version) return void console.log(version);
+  if (values['install-tools']) {
+    await installTools();
+    return;
+  }
 
   const settings = await loadSettings();
   if (values.concurrency !== undefined) {
@@ -154,21 +170,26 @@ async function main() {
     output: values.output ? path.resolve(expandHome(values.output)) : undefined,
   };
 
-  const tools = await checkTools();
-  if (!tools.ytDlp.ok) fail(`yt-dlp est introuvable — il est nécessaire pour télécharger.\n  ${INSTALL_HINTS['yt-dlp']}`);
-  const warning = tools.ffmpeg.ok
+  let found = await checkTools();
+  if (!found.ytDlp.ok && process.stdin.isTTY && (await confirm('yt-dlp est introuvable. L’installer maintenant ?'))) {
+    await installTools();
+    found = await checkTools();
+  }
+  if (!found.ytDlp.ok) fail(`yt-dlp est introuvable — il est nécessaire pour télécharger.\n  ${INSTALL_HINTS['yt-dlp']}`);
+  const tools = { ytDlpPath: found.ytDlp.path, ffmpegPath: found.ffmpeg.ok ? found.ffmpeg.path : undefined };
+  const warning = found.ffmpeg.ok
     ? undefined
     : `ffmpeg est absent : les vidéos risquent d’être mal assemblées. ${INSTALL_HINTS.ffmpeg}`;
 
   const interactive = process.stdin.isTTY && process.stdout.isTTY && !values.plain;
   if (!interactive) {
     if (warning) console.warn(`⚠ ${warning}`);
-    return runPlain(launch, settings);
+    return runPlain(launch, settings, tools);
   }
 
   let summary: Summary = { done: 0, failed: 0 };
   const app = render(
-    <App launch={launch} settings={settings} warning={warning} onExit={(s) => (summary = s)} />,
+    <App launch={launch} settings={settings} warning={warning} tools={tools} onExit={(s) => (summary = s)} />,
     { exitOnCtrlC: false, alternateScreen: true },
   );
   await app.waitUntilExit();
