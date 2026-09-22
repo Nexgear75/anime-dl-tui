@@ -1,9 +1,12 @@
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
+import path from 'node:path';
 import { useState, type ReactNode } from 'react';
-import { expandHome, tildify } from '../../core/format.js';
+import { nearestExisting, seriesFolder } from '../../core/folders.js';
+import { expandHome, sanitizeFilename, tildify } from '../../core/format.js';
 import { PLAYERS } from '../../core/players/index.js';
 import { ACCENT, ErrorLine, KeyHints, SECONDARY } from '../components/common.js';
+import { FolderPicker } from './FolderPicker.js';
 
 export interface DownloadPlan {
   outputDir: string;
@@ -29,6 +32,15 @@ export function Options({ seriesTitle, count, initial, warning, onStart, onBack 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string>();
+  const [browseFrom, setBrowseFrom] = useState<string>();
+  const seriesName = sanitizeFilename(seriesTitle);
+
+  const openBrowser = async () => {
+    // Start from the parent folder when the output follows "<parent>/<series>".
+    const start =
+      path.basename(plan.outputDir) === seriesName ? path.dirname(plan.outputDir) : plan.outputDir;
+    setBrowseFrom(await nearestExisting(start));
+  };
 
   const cyclePlayer = (delta: number) => {
     const index = PLAYERS.findIndex((player) => player.id === plan.preferredPlayer);
@@ -37,8 +49,12 @@ export function Options({ seriesTitle, count, initial, warning, onStart, onBack 
   };
 
   useInput(
-    (_input, key) => {
+    (input, key) => {
       if (key.escape) return onBack();
+      if (field === 'folder' && input === 'e') {
+        setDraft(tildify(plan.outputDir));
+        return setEditing(true);
+      }
       const index = FIELDS.indexOf(field);
       if (key.upArrow) return setField(FIELDS[(index - 1 + FIELDS.length) % FIELDS.length]!);
       if (key.downArrow || key.tab) return setField(FIELDS[(index + 1) % FIELDS.length]!);
@@ -48,14 +64,11 @@ export function Options({ seriesTitle, count, initial, warning, onStart, onBack 
       }
       if (delta && field === 'player') return cyclePlayer(delta);
       if (key.return) {
-        if (field === 'folder') {
-          setDraft(tildify(plan.outputDir));
-          return setEditing(true);
-        }
+        if (field === 'folder') return void openBrowser();
         onStart(plan);
       }
     },
-    { isActive: !editing },
+    { isActive: !editing && browseFrom === undefined },
   );
 
   useInput(
@@ -72,9 +85,24 @@ export function Options({ seriesTitle, count, initial, warning, onStart, onBack 
       return;
     }
     setError(undefined);
-    setPlan({ ...plan, outputDir: folder });
+    setPlan({ ...plan, outputDir: path.resolve(folder) });
     setEditing(false);
   };
+
+  if (browseFrom !== undefined) {
+    return (
+      <FolderPicker
+        initialDir={browseFrom}
+        seriesName={seriesName}
+        onPick={(picked) => {
+          setPlan({ ...plan, outputDir: seriesFolder(picked, seriesName) });
+          setBrowseFrom(undefined);
+          setField('start');
+        }}
+        onCancel={() => setBrowseFrom(undefined)}
+      />
+    );
+  }
 
   const row = (name: Field, label: string, value: ReactNode, adjustable = false) => {
     const active = field === name;
@@ -156,7 +184,12 @@ export function Options({ seriesTitle, count, initial, warning, onStart, onBack 
             : [
                 ['↑↓', 'champ'],
                 ['←→', 'modifier'],
-                ['Entrée', field === 'folder' ? 'éditer le dossier' : 'lancer'],
+                ...(field === 'folder'
+                  ? ([
+                      ['Entrée', 'parcourir les dossiers'],
+                      ['e', 'taper le chemin'],
+                    ] as [string, string][])
+                  : ([['Entrée', 'lancer']] as [string, string][])),
                 ['Échap', 'retour'],
               ]
         }
