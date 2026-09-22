@@ -99,8 +99,8 @@ adl https://voir-anime.to/anime/mushoku-tensei-3/   # ouvre directement la séri
 | Recherche | `Entrée` rechercher · `Échap` quitter |
 | Résultats | `↑` `↓` naviguer · `Entrée` ouvrir · `Échap` retour |
 | Épisodes | `Espace` cocher · `a` tout/rien · `i` inverser · `n` non téléchargés · `s` plage (`1-5,8`) · `PgUp`/`PgDn`/`Début`/`Fin` · `Entrée` continuer |
-| Options | `↑` `↓` choisir un champ · `←` `→` modifier · `Entrée` sur « Dossier » pour parcourir les dossiers, `e` pour taper le chemin, sinon lancer |
-| Choix du dossier | `↑` `↓` naviguer · `→`/`Entrée` ouvrir · `←` dossier parent · `Espace` choisir ce dossier · `n` nouveau dossier · `/` taper un chemin · `~` dossier perso · `.` dossiers cachés · `Échap` annuler |
+| Options | `↑` `↓` choisir un champ · `←` `→` modifier · `Entrée` sur « Dossier » pour le changer, sinon lancer |
+| Choix du dossier | taper le chemin (`~` accepté) · `Tab` compléter · `↑` `↓` choisir une suggestion · `Entrée` valider · `Échap` annuler |
 | Téléchargements | `q` arrêter et quitter · `r` réessayer les échecs · `Entrée` nouvelle recherche (une fois fini) |
 
 `Ctrl+C` fonctionne partout : il arrête proprement les téléchargements en cours. Un second `Ctrl+C` force l’arrêt.
@@ -134,7 +134,7 @@ En mode `--plain`, le code de sortie vaut `0` si tout est téléchargé, `1` en 
 
 ## Fichiers
 
-Chaque épisode est enregistré sous la forme `<dossier>/<Série> - 01.mp4` ; les films et épisodes spéciaux gardent leur titre. Par défaut, `<dossier>` vaut `~/Downloads/Anime/<Série>`. Le dossier se choisit dans l’écran Options avec un explorateur de dossiers : la série y reçoit son propre sous-dossier, et le dossier choisi devient le défaut des prochaines fois.
+Chaque épisode est enregistré sous la forme `<dossier>/<Série> - 01.mp4` ; les films et épisodes spéciaux gardent leur titre. Par défaut, `<dossier>` vaut `~/Downloads/Anime/<Série>`. Le dossier se choisit dans l’écran Options : tape le chemin, les dossiers existants sont proposés au fur et à mesure et `Tab` complète, comme dans un terminal. Un dossier qui n’existe pas encore est créé au lancement. La série y reçoit son propre sous-dossier, et le dossier choisi devient le défaut des prochaines fois.
 
 | Fichier | Contenu |
 | --- | --- |
@@ -170,7 +170,7 @@ src/
 │   ├── queue.ts          file de téléchargements : parallélisme, essais, annulation
 │   ├── http.ts           fetch avec délai maximal et nouveaux essais
 │   ├── format.ts         noms de fichiers, plages d'épisodes, affichage
-│   ├── folders.ts        navigation dans les dossiers (écran de choix du dossier)
+│   ├── folders.ts        autocomplétion des dossiers (écran de choix du dossier)
 │   ├── tools.ts          recherche et installation de yt-dlp/ffmpeg
 │   └── system.ts         réglages et journal
 └── ui/                   écrans Ink (recherche, résultats, épisodes, options, téléchargements)

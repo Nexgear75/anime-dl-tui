@@ -1,6 +1,6 @@
 {
   "name": "anime-dl-tui",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Interface terminal (Ink) pour rechercher et télécharger des animes depuis voir-anime.",
   "type": "module",
   "license": "MIT",

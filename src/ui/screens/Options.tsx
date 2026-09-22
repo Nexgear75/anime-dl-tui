@@ -1,11 +1,10 @@
 import { Box, Text, useInput } from 'ink';
-import TextInput from 'ink-text-input';
 import path from 'node:path';
 import { useState, type ReactNode } from 'react';
-import { nearestExisting, seriesFolder } from '../../core/folders.js';
-import { expandHome, sanitizeFilename, tildify } from '../../core/format.js';
+import { seriesFolder } from '../../core/folders.js';
+import { sanitizeFilename, tildify } from '../../core/format.js';
 import { PLAYERS } from '../../core/players/index.js';
-import { ACCENT, ErrorLine, KeyHints, SECONDARY } from '../components/common.js';
+import { ACCENT, KeyHints, SECONDARY } from '../components/common.js';
 import { FolderPicker } from './FolderPicker.js';
 
 export interface DownloadPlan {
@@ -29,17 +28,12 @@ type Field = (typeof FIELDS)[number];
 export function Options({ seriesTitle, count, initial, warning, onStart, onBack }: Props) {
   const [plan, setPlan] = useState(initial);
   const [field, setField] = useState<Field>('start');
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [error, setError] = useState<string>();
-  const [browseFrom, setBrowseFrom] = useState<string>();
+  const [pickFrom, setPickFrom] = useState<string>();
   const seriesName = sanitizeFilename(seriesTitle);
 
-  const openBrowser = async () => {
+  const openPicker = () => {
     // Start from the parent folder when the output follows "<parent>/<series>".
-    const start =
-      path.basename(plan.outputDir) === seriesName ? path.dirname(plan.outputDir) : plan.outputDir;
-    setBrowseFrom(await nearestExisting(start));
+    setPickFrom(path.basename(plan.outputDir) === seriesName ? path.dirname(plan.outputDir) : plan.outputDir);
   };
 
   const cyclePlayer = (delta: number) => {
@@ -49,12 +43,8 @@ export function Options({ seriesTitle, count, initial, warning, onStart, onBack 
   };
 
   useInput(
-    (input, key) => {
+    (_input, key) => {
       if (key.escape) return onBack();
-      if (field === 'folder' && input === 'e') {
-        setDraft(tildify(plan.outputDir));
-        return setEditing(true);
-      }
       const index = FIELDS.indexOf(field);
       if (key.upArrow) return setField(FIELDS[(index - 1 + FIELDS.length) % FIELDS.length]!);
       if (key.downArrow || key.tab) return setField(FIELDS[(index + 1) % FIELDS.length]!);
@@ -64,42 +54,24 @@ export function Options({ seriesTitle, count, initial, warning, onStart, onBack 
       }
       if (delta && field === 'player') return cyclePlayer(delta);
       if (key.return) {
-        if (field === 'folder') return void openBrowser();
+        if (field === 'folder') return openPicker();
         onStart(plan);
       }
     },
-    { isActive: !editing && browseFrom === undefined },
+    { isActive: pickFrom === undefined },
   );
 
-  useInput(
-    (_input, key) => {
-      if (key.escape) setEditing(false);
-    },
-    { isActive: editing },
-  );
-
-  const submitFolder = (value: string) => {
-    const folder = expandHome(value);
-    if (!folder) {
-      setError('Le dossier ne peut pas être vide.');
-      return;
-    }
-    setError(undefined);
-    setPlan({ ...plan, outputDir: path.resolve(folder) });
-    setEditing(false);
-  };
-
-  if (browseFrom !== undefined) {
+  if (pickFrom !== undefined) {
     return (
       <FolderPicker
-        initialDir={browseFrom}
+        initialDir={pickFrom}
         seriesName={seriesName}
         onPick={(picked) => {
           setPlan({ ...plan, outputDir: seriesFolder(picked, seriesName) });
-          setBrowseFrom(undefined);
+          setPickFrom(undefined);
           setField('start');
         }}
-        onCancel={() => setBrowseFrom(undefined)}
+        onCancel={() => setPickFrom(undefined)}
       />
     );
   }
@@ -137,15 +109,11 @@ export function Options({ seriesTitle, count, initial, warning, onStart, onBack 
         {row(
           'folder',
           'Dossier',
-          editing ? (
-            <TextInput value={draft} onChange={setDraft} onSubmit={submitFolder} />
-          ) : (
-            <Box flexShrink={1}>
-              <Text color={SECONDARY} wrap="truncate-middle">
-                {tildify(plan.outputDir)}
-              </Text>
-            </Box>
-          ),
+          <Box flexShrink={1}>
+            <Text color={SECONDARY} wrap="truncate-middle">
+              {tildify(plan.outputDir)}
+            </Text>
+          </Box>,
         )}
         {row('concurrency', 'Téléchargements //', <Text color={SECONDARY}>{plan.concurrency}</Text>, true)}
         {row('player', 'Lecteur préféré', <Text color={SECONDARY}>{player}</Text>, true)}
@@ -172,27 +140,14 @@ export function Options({ seriesTitle, count, initial, warning, onStart, onBack 
           <Text color="yellow">⚠ {warning}</Text>
         </Box>
       ) : null}
-      {error ? <ErrorLine>{error}</ErrorLine> : null}
 
       <KeyHints
-        hints={
-          editing
-            ? [
-                ['Entrée', 'valider'],
-                ['Échap', 'annuler'],
-              ]
-            : [
-                ['↑↓', 'champ'],
-                ['←→', 'modifier'],
-                ...(field === 'folder'
-                  ? ([
-                      ['Entrée', 'parcourir les dossiers'],
-                      ['e', 'taper le chemin'],
-                    ] as [string, string][])
-                  : ([['Entrée', 'lancer']] as [string, string][])),
-                ['Échap', 'retour'],
-              ]
-        }
+        hints={[
+          ['↑↓', 'champ'],
+          ['←→', 'modifier'],
+          ['Entrée', field === 'folder' ? 'changer le dossier' : 'lancer'],
+          ['Échap', 'retour'],
+        ]}
       />
     </Box>
   );
